@@ -436,4 +436,13 @@ describe Reservation, type: :model do
       expect(reservation.not_in_past).to be_nil
     end
   end
+
+  context 'when tries to improperly edit' do
+    r = FactoryGirl.create(:valid_reservation)
+    # make a reservation some time in future
+    r.start_date = reservation.due_date + 1.day
+    r.due_date = r.start_date + 5.day
+    r.save
+    expect(reservation.save).to be_falsey
+  end
 end

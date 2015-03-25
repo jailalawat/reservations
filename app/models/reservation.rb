@@ -16,7 +16,7 @@ class Reservation < ActiveRecord::Base
   end
   validate :start_date_before_due_date
   validate :matched_object_and_model
-  validate :not_in_past, :available, on: :create
+  validate :not_in_past, :available
 
   nilify_blanks only: [:notes]
 
