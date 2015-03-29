@@ -12,6 +12,8 @@ class ReservationsController < ApplicationController
 
   def set_user
     @user = User.find(params[:user_id])
+    return unless @user.role == 'banned'
+    flash[:error] = 'This user is banned and cannot check out equipment.'
   end
 
   def set_reservation
@@ -33,7 +35,7 @@ class ReservationsController < ApplicationController
 
     @filters = [:reserved, :checked_out, :overdue, :returned, :returned_overdue,
                 :upcoming, :requested, :approved_requests, :denied_requests]
-    @filters << :missed unless AppConfig.first.res_exp_time
+    @filters << :missed unless AppConfig.check(:res_exp_time)
 
     # if filter in session set it
     if session[:filter]
@@ -116,11 +118,11 @@ class ReservationsController < ApplicationController
           flash[:error] = 'Please review the errors below. If uncorrected, '\
             'any reservations with errors will be filed as a request, and '\
             'subject to administrator approval.'
-          if AppConfig.first.request_text.empty?
+          if AppConfig.get(:request_text).empty?
             @request_text = 'Please give a short justification for this '\
               'equipment request.'
           else
-            @request_text = AppConfig.first.request_text
+            @request_text = AppConfig.get(:request_text)
           end
         end
       end
@@ -138,16 +140,17 @@ class ReservationsController < ApplicationController
     notes = params[:reservation][:notes]
     requested = !@errors.empty? && (cannot? :override, :reservation_errors)
 
+    # check for missing notes and validation errors
     if !@errors.blank? && notes.blank?
       # there were errors but they didn't fill out the notes
       flash[:error] = 'Please give a short justification for this '\
         "reservation #{requested ? 'request' : 'override'}"
       @notes_required = true
-      if AppConfig.first.request_text.empty?
+      if AppConfig.get(:request_text).empty?
         @request_text = 'Please give a short justification for this '\
           'equipment request.'
       else
-        @request_text = AppConfig.first.request_text
+        @request_text = AppConfig.get(:request_text)
       end
       render(:new) && return
     end
@@ -245,7 +248,11 @@ class ReservationsController < ApplicationController
     checked_out_reservations = []
     params[:reservations].each do |r_id, r_attrs|
       next if r_attrs[:equipment_item_id].blank?
-      r = Reservation.find(r_id)
+      r = Reservation.includes(:reserver).find(r_id)
+      if r.reserver.role == 'banned'
+        flash[:error] = 'Banned users cannot check out equipment.'
+        redirect_to(root_path) && return
+      end
       checked_out_reservations <<
         r.checkout(r_attrs[:equipment_item_id], current_user,
                    r_attrs[:checkout_procedures], r_attrs[:notes])
@@ -348,6 +355,7 @@ class ReservationsController < ApplicationController
   end
 
   def manage # initializer
+    redirect_to(root_path) && return unless flash[:error].nil?
     @check_out_set = @user.due_for_checkout
     @check_in_set = @user.due_for_checkin
 
@@ -355,6 +363,7 @@ class ReservationsController < ApplicationController
   end
 
   def current
+    redirect_to(root_path) && return unless flash[:error].nil?
     @user_overdue_reservations_set =
       [Reservation.overdue.for_reserver(@user)].delete_if(&:empty?)
     @user_checked_out_today_reservations_set =
