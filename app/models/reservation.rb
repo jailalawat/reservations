@@ -104,6 +104,12 @@ class Reservation < ActiveRecord::Base
     equipment_model.late_fee.to_f
   end
 
+  def calculate_late_fee
+    fee = self.late_fee * (Time.zone.today - self.due_date)
+    fee = 0 if fee < 0
+    return fee
+  end
+
   def reserver
     User.find(reserver_id)
   rescue
