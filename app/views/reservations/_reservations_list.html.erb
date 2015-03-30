@@ -42,7 +42,7 @@
       <td><%= reservation.start_date.to_s(:long) %></td>
       <td><%= reservation.due_date.to_s(:long) %></td>
       <% if @filter == :overdue || @filter == :returned_overdue %>
-        <td><%= number_to_currency reservation.calculate_late_fee %></td>
+        <td><%= number_to_currency reservation.late_fee %></td>
       <% end %>
     </tr>
   <% end %>
