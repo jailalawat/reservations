@@ -101,11 +101,9 @@ class Reservation < ActiveRecord::Base
   end
 
   def late_fee
-    equipment_model.late_fee.to_f
-  end
-
-  def calculate_late_fee
-    fee = self.late_fee * (Time.zone.today - self.due_date)
+    end_date = self.checked_in
+    end_date ||= Time.zone.today
+    fee = self.late_fee * (end_date - self.due_date)
     fee = 0 if fee < 0
     return fee
   end
